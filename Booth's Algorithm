@@ -1,7 +1,5 @@
 .data
     size: .space 20 #allocates 20 bytes in memory
-    multiplier:  .asciiz "                    " #initialize user string
-    multiplicand:  .asciiz "                    " #initialize user string
     exceptionMessage: .asciiz "input error!"
     dashes: .asciiz "----------"
     space: .asciiz " "
@@ -11,27 +9,96 @@
 .text
 
 main:
-    #read user input
-    li $v0, 8 # read user input as string
-    la $a0, multiplicand #put input into input address
-    li $a1, 20 #intialize size to 20
+    jal stringToInt #multiplier
+    addi $s0, $v0, 0 #multiplier in s0
+
+    jal stringToInt #multiplicand
+    addi $s1, $v0, 0 #multiplicand in s1
+
+    li $v0, 4
+    la $a0, space
     syscall
 
-    #read user input
-    li $v0, 8 # read user input as string
-    la $a0, multiplier #put input into input address
-    li $a1, 20 #intialize size to 20
+    addi $a0, $s0, 0
+    jal printBinary
+
+    li $v0, 4
+    la $a0, newLine
     syscall
+
+    li $v0, 4
+    la $a0, X
+    syscall
+
+    addi $a0, $s1, 0
+    jal printBinary
+
+    li $v0, 4
+    la $a0, newLine
+    syscall
+
+    li $v0, 4
+    la $a0, dashes
+    syscall
+
+    jal boothsAlgorithm
+
+    j exit
+
 
     #exceptions
     #check if negative or positive (beq)
     #check if >10
 
- stringToInt:
+stringToInt:
+    addi $v0, $zero, 8 #string input
+    la $a0, size #store in size
+    addi $a1, $zero, 20
+    syscall #take input
+    addi $t1, $a0, 0 #input is in t1
+
+    addi $t3, $zero, 10 #newline
+    addi $s2, $zero, 10 #base 10
+    addi $s3, $zero, 0 #start of sum
+    addi $s4, $zero, 0 #keeps track of sign
+
+    addi $t4, $zero, 45 #ascii for minus
+    lb $t5, 0($t1) #loaded the first byte into t5
+    beq $t5, $t4, negative #checks if first byte is a minus sign
+    j sum
+    #beq $t5, $t2, sign
+
+negative: #changes the sign variable to 1
+    addi $s4, $zero, 1
+    addi $t1, $t1, 1 #shift reference to ignore negative
+    j sum
+
+sum:
+    lb $t2, 0($t1) #loads first current byte
+	beq $t2, $t3, summed #jumps if finds end of string
+	addi $t2, $t2, -48 #converts ascii to int
+    blt $t2, $zero, exception
+    bge $t2, $s2, exception
+	mul $s3, $s3, $s2 #shifts running total
+	add $s3, $s3, $t2 #adds to total
+	addi $t1, $t1, 1 #moves string pointer
+    j sum
+
+summed:
+    addi $v0, $s3, 0
+    bne $s4, $zero, subtract
+    jr $ra
+
+subtract:
+    sub $v0, $zero, $v0
+    jr $ra
+
 #convert string to int
 #print out binary of multiplicand /n x binary of multiplier  /n 10 dashes (-) /n
 
- boothsAlgorithm:
+boothsAlgorithm:
+    addi $s9, $ra, 0 #stores ra so printBinary can work
+
  #AQ will be stored in one register, right shift fo A
  #store Q-1 seperately
  #A
@@ -46,15 +113,35 @@ main:
  #𝐴𝑄𝑄−1 after shift right
  #result=AQ
 
- #printing subroutine
+printBinary: #take in a0 and print binary
+    addi $t0, $a0, 0
+    addi $t1, $zero, 32
+    lui $t2, 32768
+    ori $t2, $t2, 0
 
- exception:
-  #print_string
-  li $v0, 4 
-  la $a0, exceptionMessage # load output2
-  syscall
+loop:
+    and $a0, $t0, $t2
+    blt $a0, $zero, makeItOne
+    goBack:
+    li $v0, 1
+    syscall
 
-  exit:
-  # end program
-  li $v0, 10      
-  syscall
+    addi $t1, $t1, -1
+    sll $t0, $t0, 1
+    bne $t1, $zero, loop
+    jr $ra
+
+makeItOne:
+    addi $a0, $zero, 1
+    j goBack
+
+exception:
+    #print_string
+    li $v0, 4 
+    la $a0, exceptionMessage # load output2
+    syscall
+
+exit:
+    # end program
+    li $v0, 10      
+    syscall
