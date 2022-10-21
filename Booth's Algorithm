@@ -97,7 +97,7 @@ subtract:
 #print out binary of multiplicand /n x binary of multiplier  /n 10 dashes (-) /n
 
 boothsAlgorithm:
-    addi $s9, $ra, 0 #stores ra so printBinary can work
+    add $s7, $ra, $zero #stores ra so printBinary can work
 
  #AQ will be stored in one register, right shift fo A
  #store Q-1 seperately
@@ -112,6 +112,8 @@ boothsAlgorithm:
  #𝐴𝑄𝑄−1 after action
  #𝐴𝑄𝑄−1 after shift right
  #result=AQ
+    add $ra, $s7, $zero
+    jr $ra
 
 printBinary: #take in a0 and print binary
     addi $t0, $a0, 0
@@ -121,8 +123,7 @@ printBinary: #take in a0 and print binary
 
 loop:
     and $a0, $t0, $t2
-    blt $a0, $zero, makeItOne
-    goBack:
+    divu $a0, $a0, $t2
     li $v0, 1
     syscall
 
@@ -130,10 +131,6 @@ loop:
     sll $t0, $t0, 1
     bne $t1, $zero, loop
     jr $ra
-
-makeItOne:
-    addi $a0, $zero, 1
-    j goBack
 
 exception:
     #print_string
