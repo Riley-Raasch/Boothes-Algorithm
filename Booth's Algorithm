@@ -43,6 +43,35 @@ main:
 
     jal boothsAlgorithm
 
+    li $v0, 4
+    la $a0, newLine
+    syscall
+
+    li $v0, 4
+    la $a0, dashes
+    syscall
+
+    li $v0, 4
+    la $a0, newLine
+    syscall
+
+    li $v0, 4
+    la $a0, space
+    syscall
+
+    #print A
+    add $a0, $t0, $zero
+    jal printBinary
+
+    #print Q
+    add $a0, $s0, $zero
+    jal printBinary
+    addi $t9, $t9, -1
+
+    li $v0, 4
+    la $a0, newLine
+    syscall
+
     j exit
 
 
@@ -75,21 +104,21 @@ negative: #changes the sign variable to 1
 
 sum:
     lb $t2, 0($t1) #loads first current byte
-	beq $t2, $t3, summed #jumps if finds end of string
-	addi $t2, $t2, -48 #converts ascii to int
+    beq $t2, $t3, summed #jumps if finds end of string
+    addi $t2, $t2, -48 #converts ascii to int
     blt $t2, $zero, exception
     bge $t2, $s2, exception
-	mul $s3, $s3, $s2 #shifts running total
-	add $s3, $s3, $t2 #adds to total
-	addi $t1, $t1, 1 #moves string pointer
+    mul $s3, $s3, $s2 #shifts running total
+    add $s3, $s3, $t2 #adds to total
+    addi $t1, $t1, 1 #moves string pointer
     j sum
 
 summed:
     addi $v0, $s3, 0
-    bne $s4, $zero, subtract
+    bne $s4, $zero, minus
     jr $ra
 
-subtract:
+minus:
     sub $v0, $zero, $v0
     jr $ra
 
@@ -97,31 +126,91 @@ subtract:
 #print out binary of multiplicand /n x binary of multiplier  /n 10 dashes (-) /n
 
 boothsAlgorithm:
-    add $s7, $ra, $zero #stores ra so printBinary can work
+ add $s7, $ra, $zero #stores ra so printBinary can work
 
  #AQ will be stored in one register, right shift fo A
  #store Q-1 seperately
- #A
- #Q
- #Q-1
- #Q0Q-1
+ #count -> $t9
+ addi $t9, $zero, 32
+ #m -> multiplicand $s1
+ #A -> $t0
+ add $t0, $zero, $zero
+ #Q -> $s0
+ add $s0, $a0, $zero
+ #Q-1 -> $t1
+ add $t1, $zero, $zero
+
+loop:
+ #Q0Q-1 -> $t2
+ andi $t2, $s0, 1
+ sll $t2, $t2, 1
+ add $t2, $t2, $t1
+ beq $t9, 0, done
  #check for action
- 	#2 -> A-M
- 	#3&0 -> no change
- 	#1 -> A+M
- #𝐴𝑄𝑄−1 after action
- #𝐴𝑄𝑄−1 after shift right
- #result=AQ
-    add $ra, $s7, $zero
-    jr $ra
+ beq $t2, 2, subtract
+ beq $t2, 1, addition
+ j shiftRight
+ #add $s0, $s0, $t0
+
+subtract:
+sub $t0, $t0, $s1 #A-M
+j shiftRight
+addition:
+add $t0, $t0, $s1 #A+M
+j shiftRight
+shiftRight:
+# change values of A & Q
+#right most bit
+andi $t0, $t0, 1 #A+1
+andi $s0, $s0, 1 #Q+1
+
+sra $t0, $t0, 1 #shift right A
+sra $s0, $s0, 1 #shift right Q
+
+lui $s6, 32768
+ori $s6, $s6, 0
+
+mul $t3, $t0, $s6
+
+#newline
+    li $v0, 4
+    la $a0, newLine
+    syscall
+
+#space
+    li $v0, 4
+    la $a0, space
+    syscall
+
+#print A
+add $a0, $t0, $zero
+jal printBinary
+
+#print Q
+add $a0, $s0, $zero
+jal printBinary
+addi $t9, $t9, -1
+j loop
+
+done:
+
+add $ra, $s7, $zero
+jr $ra
 
 printBinary: #take in a0 and print binary
+    addi $sp, $sp, -12
+    sw $t0, 0($sp)
+    sw $t1, 4($sp)
+    sw $t2, 8($sp)
+
     addi $t0, $a0, 0
+
+
     addi $t1, $zero, 32
     lui $t2, 32768
     ori $t2, $t2, 0
 
-loop:
+circle:
     and $a0, $t0, $t2
     divu $a0, $a0, $t2
     li $v0, 1
@@ -129,7 +218,11 @@ loop:
 
     addi $t1, $t1, -1
     sll $t0, $t0, 1
-    bne $t1, $zero, loop
+    bne $t1, $zero, circle
+    lw $t0, 0($sp)
+    lw $t1, 4($sp)
+    lw $t2, 8($sp)
+    addi $sp, $sp, 12
     jr $ra
 
 exception:
