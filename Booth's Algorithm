@@ -9,70 +9,73 @@
 .text
 
 main:
-    jal stringToInt #multiplier
-    addi $s0, $v0, 0 #multiplier in s0
+    jal stringToInt
+    addi $s0, $v0, 0 #inputs first number into s0
 
-    jal stringToInt #multiplicand
-    addi $s1, $v0, 0 #multiplicand in s1
+    jal stringToInt
+    addi $s1, $v0, 0 #inputs second number into s1
 
     li $v0, 4
     la $a0, space
-    syscall
+    syscall #prints a space for formatting
 
     addi $a0, $s0, 0
-    jal printBinary
+    jal printBinary #prints binary for the first number
 
     li $v0, 4
     la $a0, newLine
-    syscall
+    syscall #prints a newline for formatting
 
     li $v0, 4
     la $a0, X
-    syscall
+    syscall #prints an x for formatting
 
     addi $a0, $s1, 0
-    jal printBinary
+    jal printBinary #prints binary for the second number
 
     li $v0, 4
     la $a0, newLine
-    syscall
+    syscall #prints a newline for formatting
 
     li $v0, 4
     la $a0, dashes
-    syscall
+    syscall #prints dashes for formatting
 
-    jal boothsAlgorithm
+    addi $a0, $s0, 0 #loads first and second number into a0 and a1
+    addi $a1, $s1, 0 #for booths algorithm
+    jal boothsAlgorithm #jump and loads booths algorithm
+    #store the halfs in v0, v1
+    addi $s0, $v0, 0
+    addi $s1, $v1, 0
 
+    li $v1, 0
     li $v0, 4
     la $a0, newLine
-    syscall
+    syscall #prints a newline for the final result
 
     li $v0, 4
     la $a0, dashes
-    syscall
+    syscall #prints dashes before the final result
 
     li $v0, 4
     la $a0, newLine
-    syscall
+    syscall #prints a newline
 
     li $v0, 4
     la $a0, space
-    syscall
+    syscall #prints a space
 
-    #print A
-    add $a0, $t0, $zero
-    jal printBinary
-
-    #print Q
     add $a0, $s0, $zero
-    jal printBinary
-    addi $t9, $t9, -1
+    jal printBinary #prints the first half of the result (A)
+
+    add $a0, $s1, $zero
+    jal printBinary #prints the second half of the result (Q)
 
     li $v0, 4
     la $a0, newLine
-    syscall
+    syscall #prints a newline at the end
 
-    j exit
+    j exit #exits program
 
 
     #exceptions
@@ -109,7 +112,8 @@ sum:
     blt $t2, $zero, exception
     bge $t2, $s2, exception
     mul $s3, $s3, $s2 #shifts running total
-    add $s3, $s3, $t2 #adds to total
+    addu $s3, $s3, $t2 #adds to total
+    blt $s3, $zero, exception
     addi $t1, $t1, 1 #moves string pointer
     j sum
 
@@ -126,51 +130,58 @@ minus:
 #print out binary of multiplicand /n x binary of multiplier  /n 10 dashes (-) /n
 
 boothsAlgorithm:
- add $s7, $ra, $zero #stores ra so printBinary can work
+ addi $sp, $sp, -4
+ sw $ra 0($sp) #stores the return address on the stack
 
  #AQ will be stored in one register, right shift fo A
  #store Q-1 seperately
  #count -> $t9
- addi $t9, $zero, 32
- #m -> multiplicand $s1
- #A -> $t0
- add $t0, $zero, $zero
- #Q -> $s0
- add $s0, $a0, $zero
+ addi $t9, $zero, 32 #counter
+ addi $s2, $a0, 0 #M -> s2
+ #A -> $s0
+ add $s0, $zero, $zero
+ #Q -> $s1
+ add $s1, $a1, $zero
  #Q-1 -> $t1
  add $t1, $zero, $zero
 
+ addi $t4, $zero, 1
+ addi $t5, $zero, 2 #checks for action numbers
+
+ lui $s6, 32768
+ ori $s6, $s6, 0 #1, 0's
+
 loop:
  #Q0Q-1 -> $t2
- andi $t2, $s0, 1
+ andi $t2, $s1, 1
  sll $t2, $t2, 1
- add $t2, $t2, $t1
- beq $t9, 0, done
+ add $t2, $t2, $t1 #calculates q0q1 as if its a number
+
+ beq $t9, 0, done #breaks after 32
  #check for action
- beq $t2, 2, subtract
- beq $t2, 1, addition
+ beq $t2, $t5, subtract
+ beq $t2, $t4, addition
  j shiftRight
- #add $s0, $s0, $t0
 
 subtract:
-sub $t0, $t0, $s1 #A-M
+sub $s0, $s0, $s2 #A-M
 j shiftRight
 addition:
-add $t0, $t0, $s1 #A+M
+add $s0, $s0, $s2 #A+M
 j shiftRight
+
 shiftRight:
 # change values of A & Q
 #right most bit
-andi $t0, $t0, 1 #A+1
-andi $s0, $s0, 1 #Q+1
+andi $t0, $s0, 1 #stores rightmost bit in t0
+andi $t1, $s1, 1 #stores rightomst bit in t1
 
-sra $t0, $t0, 1 #shift right A
-sra $s0, $s0, 1 #shift right Q
+sra $s0, $s0, 1 #shift right A
+srl $s1, $s1, 1 #shift right Q
 
-lui $s6, 32768
-ori $s6, $s6, 0
+mul $t0, $t0, $s6
 
-mul $t3, $t0, $s6
+addu $s1, $s1, $t0 #adds the rightmost bit to the lower half
 
 #newline
     li $v0, 4
@@ -183,18 +194,23 @@ mul $t3, $t0, $s6
     syscall
 
 #print A
-add $a0, $t0, $zero
+add $a0, $s0, $zero
 jal printBinary
 
 #print Q
-add $a0, $s0, $zero
+add $a0, $s1, $zero
 jal printBinary
+
 addi $t9, $t9, -1
 j loop
 
 done:
+lw $ra, 0($sp)
+addi $ra, $ra, 4
 
-add $ra, $s7, $zero
+addi $v0, $s0, 0
+addi $v1, $s1, 0
+
 jr $ra
 
 printBinary: #take in a0 and print binary
