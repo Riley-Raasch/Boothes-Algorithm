@@ -92,38 +92,41 @@ stringToInt:
     addi $t3, $zero, 10 #newline
     addi $s2, $zero, 10 #base 10
     addi $s3, $zero, 0 #start of sum
-    addi $s4, $zero, 0 #keeps track of sign
 
     addi $t4, $zero, 45 #ascii for minus
     lb $t5, 0($t1) #loaded the first byte into t5
-    beq $t5, $t4, negative #checks if first byte is a minus sign
-    j sum
-    #beq $t5, $t2, sign
+    bne $t5, $t4, sumPositive #checks if first byte is a minus sign
+    addi $t1, $t1, 1 #moves string pointer to ignore the negative sign
+    lb $t5, 0($t1) #loads next byte to check if string is valid
+    beq $t5, $t3, exception #errors if value is only a negative sign
+    j sumNegative
 
-negative: #changes the sign variable to 1
-    addi $s4, $zero, 1
-    addi $t1, $t1, 1 #shift reference to ignore negative
-    j sum
-
-sum:
+sumPositive:
     lb $t2, 0($t1) #loads first current byte
     beq $t2, $t3, summed #jumps if finds end of string
     addi $t2, $t2, -48 #converts ascii to int
-    blt $t2, $zero, exception
-    bge $t2, $s2, exception
+    blt $t2, $zero, exception #errors if input is invalid ascii
+    bge $t2, $s2, exception #errors if input is invalid ascii
     mul $s3, $s3, $s2 #shifts running total
     addu $s3, $s3, $t2 #adds to total
-    blt $s3, $zero, exception
+    blt $s3, $zero, exception #errors if overflow
     addi $t1, $t1, 1 #moves string pointer
-    j sum
+    j sumPositive
+
+sumNegative: 
+    lb $t2, 0($t1) #loads current byte
+    beq $t2, $t3, summed #jumps at the end of string
+    addi $t2, $t2, -48 #converts ascii to int
+    blt $t2, $zero, exception #errors if input is invalid ascii
+    bge $t2, $s2, exception #errors if input is invalid ascii
+    mul $s3, $s3, $s2 #shifts running total
+    subu $s3, $s3, $t2 #subtracts from running total
+    bgt $s3, $zero, exception #errors if overflow
+    addi $t1, $t1, 1 #moves string pointer
+    j sumNegative
 
 summed:
     addi $v0, $s3, 0
-    bne $s4, $zero, minus
-    jr $ra
-
-minus:
-    sub $v0, $zero, $v0
     jr $ra
 
 #convert string to int
